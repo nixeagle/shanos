@@ -1,12 +1,15 @@
-org 7C00h
+;;; Ribonu kernel for Shanos
+        org 7C00h
+        bits 16
+        cpu 686
+        jmp _start ; Jump over our initial data segment
 
-
-jmp _start ; Jump over our initial data segment
+RSD_POINTER$: equ 0x040e                            ; Same as 0x40:0E
 
 _boot_drive_number_str: db "Boot drive number: ", 0 ; String
 _newline: db 13, 10, 0 ; Newline ("\r\n")
 _boot_drive_number: db 0xff ; Value must be 0x0<something> to be valid.
-_RSDP_pointer: dw 0x040e
+
 
 _start:
         ;call get_drive_number
@@ -102,8 +105,10 @@ print_AX_hex:
 
 ;;; Returns the pointer vie ax register
 load_rsdp_pointer:
-        mov ax, [_RSDP_pointer]
+        mov ax, [RSD_POINTER$]
         ret
 
-times 510 - ($-$$) db 0         ; We have to be 512 bytes.
-dw 0xAA55                       ; Boot Signiture 
+        times 510 - ($-$$) db 0 ; We have to be 512 bytes.
+        dw 0xAA55               ; Boot Signiture
+
+;;; End ribonu
