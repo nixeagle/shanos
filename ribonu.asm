@@ -1,54 +1,50 @@
-;;; Ribonu kernel for Shanos
+org 7C00h
 
-;;; [a-zA-Z0-9_$#@~.?]
-        org 7C00h
-        bits 16
-        CPU 686                 ; Not going to support anything older.
 
-RSD_pointer:   equ 0x040e       ; Same as 0x40:0E
-        jmp 0x0000:drive_number_ ; Far jump over our initial data segment
-_hello_world: db `Hello, world!\r\n`, 0
+jmp _start ; Jump over our initial data segment
+
+_boot_drive_number_str: db "Boot drive number: ", 0 ; String
+_newline: db 13, 10, 0 ; Newline ("\r\n")
 _boot_drive_number: db 0xff ; Value must be 0x0<something> to be valid.
-        
-drive_number_: ; Make note of what drive we were loaded from.
+_RSDP_pointer: dw 0x040e
+
+_start:
+        ;call get_drive_number
         mov [_boot_drive_number], dl
         and BYTE [_boot_drive_number], 0x0f
 
+        mov ah, 0xe ; Set everything up for text printing
         
-        mov ah, 0xe ; for the interrupt.
-        mov si, _hello_world
-        jmp print
-        
-print:
-lodsb ; Load a char from 'string'
-cmp al, 0 ; Null terminated means stop.
-jz test
-int 0x10 ; Tell BIOS to print a char.
-jmp print
-
-test:
-        mov al, 0xbc
-        call print_AX_hex
+        mov si, _boot_drive_number_str
+        call _print
         mov al, [_boot_drive_number]
-        call print_newline
         call print_AX_hex
-        call print_newline
-        call print_AX_hex
-        call print_newline
-
-        jz $
-
+        mov si, _newline
+        call _print
+        jmp $
 
 ;;; All below are "library" functions.
 ;;; All functions are considered callee saves unless it starts with
 ;;; a leading underscore.
-print_newline:
+
+;;; Print a string, pointer to which is in si. (print macro preferred)
+_print:
         push ax
-        mov al, `\r`
-        call _print_char
-        mov al, `\n`
-        call _print_char
+.start:
+lodsb ; Load a char from 'string'
+cmp al, 0 ; Null terminated means stop.
+jz .end
+int 0x10 ; Tell BIOS to print a char.
+jmp .start
+.end:
         pop ax
+        ret
+
+;;; Print a string, pointer to which is in si, followed by a newline. (println macro preferred)
+_println:
+        call _print
+        mov si, _newline
+        call _print
         ret
 
 _print_char:
@@ -101,12 +97,10 @@ print_AX_hex:
         pop ax ; Restore state to what we were given.
         ret
 
-
-
-
-
-
 ;;; Returns the pointer vie ax register
 load_rsdp_pointer:
-        mov ax, [RSDP_POINTER]
+        mov ax, [_RSDP_pointer]
         ret
+
+times 510 - ($-$$) db 0         ; We have to be 512 bytes.
+dw 0xAA55                       ; Boot Signiture 
