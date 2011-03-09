@@ -48,8 +48,11 @@ _println:
         ret
 
 _print_char:
-        mov ah, 0xe
+        push bx                 ; save bx as we zero it out before
+        mov ah, 0xe             ; the bios call.
+        xor bx, bx
         int 0x10
+        pop bx
         ret
 
 __print_hex:
